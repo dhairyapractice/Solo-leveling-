@@ -1,0 +1,130 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Solo Leveling Dark Theme */
+    --background: 220 20% 8%;
+    --foreground: 210 30% 95%;
+
+    --card: 220 25% 10%;
+    --card-foreground: 210 30% 95%;
+
+    --popover: 220 25% 10%;
+    --popover-foreground: 210 30% 95%;
+
+    --primary: 210 100% 50%; /* Electric Blue */
+    --primary-foreground: 220 20% 8%;
+
+    --secondary: 280 70% 50%; /* Purple Accent */
+    --secondary-foreground: 210 30% 95%;
+
+    --muted: 220 15% 15%;
+    --muted-foreground: 210 10% 60%;
+
+    --accent: 45 100% 55%; /* Gold */
+    --accent-foreground: 220 20% 8%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 210 30% 95%;
+
+    --border: 220 20% 20%;
+    --input: 220 20% 15%;
+    --ring: 210 100% 50%;
+
+    --radius: 0.75rem;
+
+    /* Custom colors for game elements */
+    --exp-bar: 160 80% 40%; /* Green for EXP */
+    --hp-bar: 0 80% 50%; /* Red for HP */
+    --gold: 45 100% 55%;
+    --glow-blue: 210 100% 50%;
+    --glow-purple: 280 70% 50%;
+
+    /* Gradients */
+    --gradient-hero: linear-gradient(135deg, hsl(210 100% 50% / 0.2), hsl(280 70% 50% / 0.2));
+    --gradient-card: linear-gradient(180deg, hsl(220 25% 12%), hsl(220 25% 8%));
+    --shadow-glow: 0 0 40px hsl(210 100% 50% / 0.3);
+    --shadow-card: 0 8px 32px hsl(220 50% 5% / 0.5);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  /* Custom animations */
+  @keyframes glow-pulse {
+    0%, 100% {
+      box-shadow: 0 0 20px hsl(var(--glow-blue) / 0.3);
+    }
+    50% {
+      box-shadow: 0 0 40px hsl(var(--glow-blue) / 0.6);
+    }
+  }
+
+  @keyframes level-up {
+    0% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.2);
+      opacity: 0.8;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -1000px 0;
+    }
+    100% {
+      background-position: 1000px 0;
+    }
+  }
+
+  .glow-text {
+    text-shadow: 0 0 10px hsl(var(--glow-blue) / 0.8);
+  }
+
+  .glow-card {
+    animation: glow-pulse 3s ease-in-out infinite;
+  }
+
+  .level-up-animation {
+    animation: level-up 0.6s ease-out;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--primary) / 0.5);
+    border-radius: 5px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary));
+  }
+}
