@@ -30,11 +30,11 @@ interface StatusCategory {
 }
 
 const DIFFICULTY_REWARDS = {
-  S: { exp: 50, hp: -20, penalty: -25 },
-  A: { exp: 25, hp: -10, penalty: -15 },
-  B: { exp: 10, hp: -5, penalty: -10 },
-  C: { exp: 5, hp: 0, penalty: -5 },
-  D: { exp: 2, hp: 0, penalty: -2 },
+  S: { exp: 50, hp: 20, penalty: -50 },
+  A: { exp: 25, hp: 10, penalty: -30 },
+  B: { exp: 10, hp: 5, penalty: -20 },
+  C: { exp: 5, hp: 0, penalty: -10 },
+  D: { exp: 2, hp: 0, penalty: -5 },
 } as const;
 
 export default function Quests() {
