@@ -29,12 +29,13 @@ interface StatusCategory {
   name: string;
 }
 
+// Default values for new quests - can be overridden when creating/editing
 const DIFFICULTY_REWARDS = {
-  S: { exp: 50, hp: -20, penalty: -25 },
-  A: { exp: 25, hp: -10, penalty: -15 },
-  B: { exp: 10, hp: -5, penalty: -10 },
-  C: { exp: 5, hp: 0, penalty: -5 },
-  D: { exp: 2, hp: 0, penalty: -2 },
+  S: { exp: 1000, hp: 500, penalty: 0 },
+  A: { exp: 500, hp: 250, penalty: 0 },
+  B: { exp: 250, hp: 100, penalty: 0 },
+  C: { exp: 100, hp: 50, penalty: 0 },
+  D: { exp: 50, hp: 25, penalty: 0 },
 } as const;
 
 export default function Quests() {
@@ -48,6 +49,8 @@ export default function Quests() {
   const [newQuestType, setNewQuestType] = useState("Daily");
   const [newQuestDifficulty, setNewQuestDifficulty] = useState("C");
   const [newQuestCategory, setNewQuestCategory] = useState("");
+  const [customExp, setCustomExp] = useState<number | null>(null);
+  const [customHp, setCustomHp] = useState<number | null>(null);
 
   useEffect(() => {
     fetchQuests();
@@ -85,7 +88,9 @@ export default function Quests() {
   const addQuest = async () => {
     if (!user || !newQuestTitle.trim()) return;
 
-    const rewards = DIFFICULTY_REWARDS[newQuestDifficulty as keyof typeof DIFFICULTY_REWARDS];
+    const difficultyRewards = DIFFICULTY_REWARDS[newQuestDifficulty as keyof typeof DIFFICULTY_REWARDS];
+    const expReward = customExp !== null ? customExp : difficultyRewards.exp;
+    const hpReward = customHp !== null ? customHp : difficultyRewards.hp;
 
     const { error } = await supabase
       .from("quests")
@@ -96,8 +101,8 @@ export default function Quests() {
         quest_type: newQuestType.toLowerCase(),
         difficulty: newQuestDifficulty,
         status_category_id: newQuestCategory || null,
-        exp_reward: rewards.exp,
-        hp_reward: rewards.hp,
+        exp_reward: expReward,
+        hp_reward: hpReward,
         completed: false,
       });
 
@@ -497,6 +502,29 @@ export default function Quests() {
                   placeholder="Additional details..."
                   rows={3}
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="customExp">Custom EXP (Optional)</Label>
+                  <Input
+                    id="customExp"
+                    type="number"
+                    min="0"
+                    placeholder={`Default: ${DIFFICULTY_REWARDS[newQuestDifficulty as keyof typeof DIFFICULTY_REWARDS].exp}`}
+                    value={customExp ?? ''}
+                    onChange={(e) => setCustomExp(e.target.value ? parseInt(e.target.value, 10) : null)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="customHp">Custom HP (Optional)</Label>
+                  <Input
+                    id="customHp"
+                    type="number"
+                    placeholder={`Default: ${DIFFICULTY_REWARDS[newQuestDifficulty as keyof typeof DIFFICULTY_REWARDS].hp}`}
+                    value={customHp ?? ''}
+                    onChange={(e) => setCustomHp(e.target.value ? parseInt(e.target.value, 10) : null)}
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
