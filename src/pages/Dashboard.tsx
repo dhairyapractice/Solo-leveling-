@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Flame, Coins, Heart, Zap, TrendingUp, Award, Image as ImageIcon } from "lucide-react";
+import { Flame, Coins, Heart, Zap, TrendingUp, Award, Image as ImageIcon, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +39,8 @@ export default function Dashboard() {
   const [newBannerFile, setNewBannerFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [purchasedItems, setPurchasedItems] = useState<any[]>([]);
+  const [editingBadge, setEditingBadge] = useState<string | null>(null);
+  const [badgeImageFile, setBadgeImageFile] = useState<File | null>(null);
 
   useEffect(() => {
     fetchProfile();
@@ -185,6 +187,57 @@ export default function Dashboard() {
       } else {
         toast({ title: "Profile Picture Updated" });
         fetchProfile();
+      }
+    } catch (e: any) {
+      toast({
+        title: "Image Upload Failed",
+        description: e.message ?? "Could not upload image",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const uploadBadgeImage = async (file: File) => {
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${user?.id}-${Date.now()}.${fileExt}`;
+    const filePath = `${user?.id}/badges/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("hunter-assets")
+      .upload(filePath, file, { upsert: false });
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage.from("hunter-assets").getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
+  const updateBadgeImage = async (badgeId: string) => {
+    if (!badgeImageFile || !user) return;
+
+    try {
+      setSaving(true);
+      const imageUrl = await uploadBadgeImage(badgeImageFile);
+
+      const { error } = await supabase
+        .from("badges")
+        .update({ image_url: imageUrl })
+        .eq("id", badgeId)
+        .eq("user_id", user.id);
+
+      if (error) {
+        toast({
+          title: "Update Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Badge Image Updated" });
+        setEditingBadge(null);
+        setBadgeImageFile(null);
+        fetchEarnedBadges();
       }
     } catch (e: any) {
       toast({
@@ -466,15 +519,67 @@ export default function Dashboard() {
             {earnedBadges.map((badge) => (
               <div
                 key={badge.id}
-                className="p-4 rounded-lg bg-muted/30 text-center hover:bg-muted/50 transition-colors"
+                className="relative group p-4 rounded-lg bg-muted/30 text-center hover:bg-muted/50 transition-colors"
               >
-                {badge.badges.image_url && (
-                  <img
-                    src={badge.badges.image_url}
-                    alt={badge.badges.name}
-                    className="h-16 w-16 mx-auto mb-2 rounded-full"
-                  />
-                )}
+                <div className="relative inline-flex items-center justify-center mx-auto mb-2">
+                  {badge.badges.image_url && (
+                    <img
+                      src={badge.badges.image_url}
+                      alt={badge.badges.name}
+                      className="h-16 w-16 rounded-full"
+                    />
+                  )}
+                  {/* Hover overlay for editing */}
+                  <div className="absolute inset-0 h-16 w-16 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-full flex items-center justify-center cursor-pointer">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 rounded-full p-0 text-white hover:bg-white/20"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingBadge(badge.badges.id);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Edit Badge Image</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                          <div className="flex justify-center">
+                            {badge.badges.image_url && (
+                              <img
+                                src={badge.badges.image_url}
+                                alt={badge.badges.name}
+                                className="h-32 w-32 rounded-full object-cover"
+                              />
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`badge-image-${badge.id}`}>New Badge Image</Label>
+                            <Input
+                              id={`badge-image-${badge.id}`}
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => setBadgeImageFile(e.target.files?.[0] || null)}
+                            />
+                          </div>
+                          <Button
+                            onClick={() => updateBadgeImage(badge.badges.id)}
+                            className="w-full"
+                            disabled={!badgeImageFile || saving}
+                          >
+                            {saving ? "Uploading..." : "Update Image"}
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                </div>
                 <p className="font-semibold">{badge.badges.name}</p>
                 <p className="text-xs text-muted-foreground">{badge.badges.description}</p>
               </div>

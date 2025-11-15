@@ -53,8 +53,15 @@ export default function Quests() {
   const [customHp, setCustomHp] = useState<number | null>(null);
 
   useEffect(() => {
-    fetchQuests();
-    fetchCategories();
+    const loadData = async () => {
+      await fetchQuests();
+      await fetchCategories();
+      if (user) {
+        // Calculate initial progress and streak on load
+        await updateProgressAndStreak();
+      }
+    };
+    loadData();
   }, [user]);
 
   const fetchQuests = async () => {
@@ -85,6 +92,89 @@ export default function Quests() {
     }
   };
 
+  const updateProgressAndStreak = async () => {
+    if (!user) return;
+
+    // Get user's current profile data including exp history
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("exp, exp_history, streak, last_active_date, progress_percentage")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!profile) return;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split("T")[0];
+    
+    // Initialize exp_history if it doesn't exist
+    const expHistory = profile.exp_history || {};
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
+    
+    let progressPercentage = 0;
+    let streak = profile.streak || 0;
+    
+    // Check if we've already updated today
+    if (profile.last_active_date !== todayStr) {
+      // Calculate progress based on today's exp vs yesterday's exp
+      const yesterdayExp = expHistory[yesterdayStr] || 0;
+      const todayExp = expHistory[todayStr] || 0;
+      
+      if (yesterdayExp > 0) {
+        // Calculate percentage change from yesterday
+        progressPercentage = Math.round(((todayExp - yesterdayExp) / yesterdayExp) * 100);
+      } else if (todayExp > 0) {
+        // If no yesterday's data but we have today's, set to 100%
+        progressPercentage = 100;
+      }
+      
+      // Update streak
+      if (todayExp > 0) {
+        // If we have activity today and it's a new day
+        if (profile.last_active_date === yesterdayStr) {
+          // Consecutive day
+          streak++;
+        } else if (profile.last_active_date !== todayStr) {
+          // Missed a day, reset streak
+          streak = 1;
+        }
+      } else if (profile.last_active_date && profile.last_active_date < yesterdayStr) {
+        // No activity today and missed a day, reset streak
+        streak = 0;
+      }
+      
+      // Update profile with new progress and streak
+      await supabase
+        .from("profiles")
+        .update({
+          progress_percentage: progressPercentage,
+          streak: streak,
+          last_active_date: todayStr,
+          exp_history: {
+            ...expHistory,
+            [todayStr]: profile.exp // Store current exp for today
+          }
+        })
+        .eq("user_id", user.id);
+    }
+
+    // Update profile with progress and streak
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        progress_percentage: progressPercentage,
+        streak: streak,
+      })
+      .eq("user_id", user.id);
+
+    if (error) {
+      console.error("Error updating progress and streak:", error);
+    }
+  };
+
   const addQuest = async () => {
     if (!user || !newQuestTitle.trim()) return;
 
@@ -92,13 +182,15 @@ export default function Quests() {
     const expReward = customExp !== null ? customExp : difficultyRewards.exp;
     const hpReward = customHp !== null ? customHp : difficultyRewards.hp;
 
+    const questType = newQuestType.toLowerCase();
+
     const { error } = await supabase
       .from("quests")
       .insert({
         user_id: user.id,
         title: newQuestTitle,
         description: newQuestDesc,
-        quest_type: newQuestType.toLowerCase(),
+        quest_type: questType,
         difficulty: newQuestDifficulty,
         status_category_id: newQuestCategory || null,
         exp_reward: expReward,
@@ -113,6 +205,14 @@ export default function Quests() {
       setNewQuestTitle("");
       setNewQuestDesc("");
       setNewQuestCategory("");
+      setCustomExp(null);
+      setCustomHp(null);
+      
+      // Update progress if daily quest was added
+      if (questType === "daily") {
+        await updateProgressAndStreak();
+      }
+      
       fetchQuests();
     }
   };
@@ -138,11 +238,18 @@ export default function Quests() {
   };
 
   const deleteQuest = async (quest: Quest) => {
+    const questType = quest.quest_type.toLowerCase();
     const { error } = await supabase.from("quests").delete().eq("id", quest.id);
     if (error) {
       toast({ title: "Delete Failed", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Quest Deleted", description: `${quest.title} removed.` });
+      
+      // Update progress if daily quest was deleted
+      if (questType === "daily") {
+        await updateProgressAndStreak();
+      }
+      
       fetchQuests();
     }
   };
@@ -209,6 +316,11 @@ export default function Quests() {
             .eq("id", quest.status_category_id);
         }
       }
+    }
+
+    // Update progress and streak for daily quests
+    if (quest.quest_type.toLowerCase() === "daily") {
+      await updateProgressAndStreak();
     }
 
     fetchQuests();
